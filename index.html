@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Alerta México — Mapa de Incidentes en Tiempo Real</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css"/>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- LOADING SCREEN -->
+<div id="loading-screen">
+  <div class="loader-content">
+    <div class="loader-icon">
+      <div class="loader-ring"></div>
+      <div class="loader-ring delay"></div>
+      <svg class="loader-shield" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M12 2L3 7v5c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-9-5z"/>
+        <path d="M12 8v4M12 16h.01"/>
+      </svg>
+    </div>
+    <h2>ALERTA MÉXICO</h2>
+    <p>Cargando mapa de incidentes...</p>
+    <div class="loader-bar"><div class="loader-bar-fill"></div></div>
+  </div>
+</div>
+
+<!-- TOAST CONTAINER -->
+<div id="toast-container"></div>
+
+<!-- HEADER -->
+<header id="app-header">
+  <div class="header-left">
+    <div class="header-status">
+      <span class="status-dot"></span>
+      <span class="status-text">EN VIVO</span>
+    </div>
+    <div class="header-title-group">
+      <h1>ALERTA MÉXICO</h1>
+      <span class="header-subtitle">Mapa de incidentes en tiempo real</span>
+    </div>
+  </div>
+  <div class="header-center">
+    <div class="header-stats" id="header-stats">
+      <div class="stat-chip stat-total">
+        <span class="stat-number" id="stat-total">0</span>
+        <span class="stat-label">Incidentes</span>
+      </div>
+      <div class="stat-chip stat-fire">
+        <span class="stat-number" id="stat-fire">0</span>
+        <span class="stat-label">Incendios</span>
+      </div>
+      <div class="stat-chip stat-block">
+        <span class="stat-number" id="stat-block">0</span>
+        <span class="stat-label">Bloqueos</span>
+      </div>
+      <div class="stat-chip stat-other">
+        <span class="stat-number" id="stat-other">0</span>
+        <span class="stat-label">Otros</span>
+      </div>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="header-clock" id="header-clock">--:--:--</div>
+    <div class="header-date">22 Febrero 2026</div>
+  </div>
+</header>
+
+<!-- MAIN LAYOUT -->
+<main id="app-main">
+
+  <!-- SIDEBAR -->
+  <aside id="sidebar" class="sidebar">
+    <!-- Sidebar Header -->
+    <div class="sidebar-top">
+      <div class="sidebar-search">
+        <svg class="search-icon" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/></svg>
+        <input type="text" id="search-input" placeholder="Buscar incidente o zona..." autocomplete="off">
+        <button class="search-clear" id="search-clear" aria-label="Limpiar">&times;</button>
+      </div>
+
+      <!-- Filters -->
+      <div class="filter-bar" id="filter-bar">
+        <button class="filter-chip active" data-filter="all">
+          <span class="filter-dot all"></span>Todos
+        </button>
+        <button class="filter-chip" data-filter="fire">
+          <span class="filter-dot fire"></span>Incendios
+        </button>
+        <button class="filter-chip" data-filter="block">
+          <span class="filter-dot block"></span>Bloqueos
+        </button>
+        <button class="filter-chip" data-filter="spike">
+          <span class="filter-dot spike"></span>Poncha llantas
+        </button>
+        <button class="filter-chip" data-filter="shooting">
+          <span class="filter-dot shooting"></span>Balaceras
+        </button>
+        <button class="filter-chip" data-filter="other">
+          <span class="filter-dot other-dot"></span>Otros
+        </button>
+      </div>
+    </div>
+
+    <!-- Incident List -->
+    <div class="incident-list" id="incident-list"></div>
+
+    <!-- Sidebar Footer -->
+    <div class="sidebar-footer">
+      <div class="legend-row">
+        <div class="legend-item"><span class="legend-dot" style="background:#ef4444"></span>Confirmado</div>
+        <div class="legend-item"><span class="legend-dot" style="background:#f59e0b"></span>Bloqueo</div>
+        <div class="legend-item"><span class="legend-dot" style="background:#f97316"></span>Ciudadano</div>
+      </div>
+      <div class="sidebar-credits">
+        ALERTA MÉXICO 
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAP -->
+  <div class="map-container">
+    <div id="map"></div>
+
+    <!-- Map Overlay Controls -->
+    <div class="map-controls">
+      <button class="map-btn" id="btn-zoom-all" title="Ver todos los incidentes">
+        <svg viewBox="0 0 20 20" fill="currentColor"><path d="M3 4a1 1 0 011-1h4a1 1 0 010 2H6.414l2.293 2.293a1 1 0 01-1.414 1.414L5 6.414V8a1 1 0 01-2 0V4zm9 1a1 1 0 110-2h4a1 1 0 011 1v4a1 1 0 11-2 0V6.414l-2.293 2.293a1 1 0 11-1.414-1.414L13.586 5H12zm-9 7a1 1 0 112 0v1.586l2.293-2.293a1 1 0 011.414 1.414L6.414 15H8a1 1 0 110 2H4a1 1 0 01-1-1v-4zm13 0a1 1 0 10-2 0v1.586l-2.293-2.293a1 1 0 00-1.414 1.414L13.586 15H12a1 1 0 100 2h4a1 1 0 001-1v-4z"/></svg>
+      </button>
+      <button class="map-btn" id="btn-heatmap" title="Alternar mapa de calor">
+        <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M12.395 2.553a1 1 0 00-1.45-.385c-.345.23-.614.558-.822.88-.214.33-.403.713-.57 1.116-.334.804-.614 1.768-.84 2.734a31.365 31.365 0 00-.613 3.58 2.64 2.64 0 01-.945-1.067c-.328-.68-.398-1.534-.398-2.654A1 1 0 005.05 6.05 6.981 6.981 0 003 11a7 7 0 1011.95-4.95c-.592-.591-.98-.985-1.348-1.467-.363-.476-.724-1.063-1.207-2.03zM12.12 15.12A3 3 0 017 13s.879.5 2.5.5c0-1 .5-4 1.25-4.5.5 1 .786 1.293 1.371 1.879A2.99 2.99 0 0113 13a2.99 2.99 0 01-.879 2.121z" clip-rule="evenodd"/></svg>
+      </button>
+    </div>
+
+    <!-- Report FAB -->
+    <button class="fab-report" id="fab-report">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+      <span>Reportar</span>
+    </button>
+
+    <!-- Alert Ticker -->
+    <div class="alert-ticker">
+      <div class="ticker-badge">ALERTA</div>
+      <div class="ticker-track">
+        <span class="ticker-text">CODIGO ROJO JALISCO — Evite circular en las zonas marcadas &bull; Transporte publico suspendido en ZMG &bull; No salga si no es necesario &bull; Emergencias: 911 &bull; Reporte incidentes en tiempo real</span>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- REPORT MODAL -->
+<div class="modal-overlay" id="report-modal">
+  <div class="modal-backdrop" id="modal-backdrop"></div>
+  <div class="modal-panel">
+    <div class="modal-header">
+      <div>
+        <h2>Reportar incidente</h2>
+        <p>Tu reporte sera validado antes de publicarse</p>
+      </div>
+      <button class="modal-close" id="modal-close" aria-label="Cerrar">
+        <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Tipo de incidente</label>
+        <div class="type-selector" id="type-selector">
+          <button class="type-option active" data-type="fire">
+            <span class="type-emoji">&#x1F525;</span>
+            <span>Vehiculo incendiado</span>
+          </button>
+          <button class="type-option" data-type="block">
+            <span class="type-emoji">&#x1F6A7;</span>
+            <span>Bloqueo vial</span>
+          </button>
+          <button class="type-option" data-type="spike">
+            <span class="type-emoji">&#x1F6DE;</span>
+            <span>Poncha llantas</span>
+          </button>
+          <button class="type-option" data-type="shooting">
+            <span class="type-emoji">&#x1F4A5;</span>
+            <span>Balacera</span>
+          </button>
+          <button class="type-option" data-type="other">
+            <span class="type-emoji">&#x26A0;&#xFE0F;</span>
+            <span>Otro peligro</span>
+          </button>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="report-desc">Descripcion</label>
+        <textarea id="report-desc" class="form-textarea" placeholder="Ej: Periferico y Vallarta, vehiculo en llamas bloqueando ambos sentidos..." rows="3"></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Ubicacion en el mapa</label>
+        <div class="location-picker" id="location-picker">
+          <div class="location-preview" id="location-preview">
+            <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd"/></svg>
+            <span>Toca para seleccionar ubicacion</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" id="btn-cancel-report">Cancelar</button>
+      <button class="btn-primary" id="btn-submit-report" disabled>
+        <svg viewBox="0 0 20 20" fill="currentColor"><path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z"/></svg>
+        Enviar reporte
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- MAP PICKER FULLSCREEN -->
+<div class="picker-overlay" id="picker-overlay">
+  <div class="picker-header">
+    <button class="picker-cancel" id="picker-cancel">
+      <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clip-rule="evenodd"/></svg>
+      Volver
+    </button>
+    <span class="picker-title">Selecciona la ubicacion</span>
+    <button class="picker-confirm" id="picker-confirm">Confirmar</button>
+  </div>
+  <div id="picker-map"></div>
+  <div class="picker-crosshair">
+    <div class="crosshair-ring"></div>
+    <div class="crosshair-dot"></div>
+  </div>
+  <div class="picker-coords" id="picker-coords">20.6500, -103.3500</div>
+</div>
+
+<!-- SCRIPTS -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
